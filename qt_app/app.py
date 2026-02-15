@@ -1,5 +1,6 @@
 import sys
 import unicodedata
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -32,14 +33,18 @@ from PyQt6.QtWidgets import (
 )
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit
-from domain import (
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from shared.domain import (
     ALIAS_SYMBOLS,
     SCREEN_UNIVERSES,
     DEFAULT_RF_FEATURE_FLAGS,
     CandidateScore,
     ForecastResult,
 )
-from feature_utils import (
+from shared.feature_utils import (
     build_rf_feature_dataset,
     make_rf_feature_vector,
     normalize_rf_feature_flags,

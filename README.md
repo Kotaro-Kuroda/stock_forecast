@@ -34,13 +34,23 @@ uv sync
 ## 実行
 ```bash
 cd /Users/kurodakotaro/Documents/Stock/pyqt_stock_forecast
-uv run app.py
+uv run qt_app/app.py
 ```
 
+## 実行（Flask Web版）
+```bash
+cd /Users/kurodakotaro/Documents/Stock/pyqt_stock_forecast
+uv run flask_app/app.py
+```
+ブラウザで `http://127.0.0.1:5000` を開いてください。
+
 ## ファイル構成
-- `app.py`: PyQt GUI と画面イベント処理
-- `domain.py`: 定数（銘柄ユニバース/エイリアス）とデータクラス
-- `feature_utils.py`: RF/XGBoost用の特徴量生成ロジック
+- `qt_app/app.py`: PyQt GUIアプリ
+- `flask_app/app.py`: Flask API とWeb画面エントリ
+- `flask_app/forecast_service.py`: Flask版の予測・バックテスト処理
+- `flask_app/templates/index.html`: Flask版フロントエンド（Plotly描画）
+- `shared/domain.py`: 定数（銘柄ユニバース/エイリアス）とデータクラス
+- `shared/feature_utils.py`: RF/XGBoost用の特徴量生成ロジック
 
 ## 使い方
 1. `銘柄名/コード` に入力
@@ -83,3 +93,11 @@ uv run app.py
 - 入力が銘柄名の場合、`yfinance` の検索 API 依存のため一致しない場合があります。
 - `Importing plotly failed` と表示される場合は `uv sync` を再実行してください。
 - 日本語フォントが見つからない環境では、チャート内テキストは自動で英語表示にフォールバックします。
+- `ImportError: ... _ssl ... libssl.1.1.dylib` が出る場合は、Python 3.11 で仮想環境を作り直してください:
+```bash
+cd /Users/kurodakotaro/Documents/Stock/pyqt_stock_forecast
+uv python install 3.11
+rm -rf .venv
+uv venv --python 3.11
+uv sync
+```

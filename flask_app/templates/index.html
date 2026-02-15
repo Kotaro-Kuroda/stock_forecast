@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stock Forecast Web (Flask)</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    body { font-family: "Hiragino Sans", "Yu Gothic", sans-serif; margin: 0; background: #f5f7fb; color: #202124; }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 16px; }
+    .row { display: grid; grid-template-columns: repeat(8, minmax(100px, 1fr)); gap: 8px; margin-bottom: 8px; }
+    .field { display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #d9e0ea; border-radius: 8px; padding: 6px 8px; }
+    .field label { font-size: 12px; color: #4b5563; white-space: nowrap; }
+    .field input, .field select { width: 100%; border: none; outline: none; background: transparent; font-size: 14px; }
+    .checks { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btns { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+    button { border: none; border-radius: 8px; padding: 9px 14px; cursor: pointer; background: #2563eb; color: #fff; }
+    button.secondary { background: #64748b; }
+    button.green { background: #0d9488; }
+    .tabs { display: flex; gap: 6px; margin: 8px 0; }
+    .tab-btn { background: #cbd5e1; color: #111827; }
+    .tab-btn.active { background: #2563eb; color: #fff; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    #chartArea { position: relative; background: #fff; border: 1px solid #d9e0ea; border-radius: 10px; padding: 8px; min-height: 560px; }
+    #chart { height: 540px; }
+    #overlay { position: absolute; inset: 0; display: none; background: rgba(0,0,0,0.35); border-radius: 10px; align-items: center; justify-content: center; flex-direction: column; z-index: 5; }
+    .spinner { width: 56px; height: 56px; border-radius: 50%; border: 6px solid rgba(255,255,255,0.35); border-top-color: #fff; animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .overlay-msg { color: #fff; margin-top: 10px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d9e0ea; border-radius: 10px; overflow: hidden; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 8px; font-size: 13px; text-align: right; }
+    th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+    .status { font-size: 13px; color: #334155; margin: 6px 0 10px; }
+    @media (max-width: 1200px) { .row { grid-template-columns: repeat(4, minmax(120px, 1fr)); } }
+    @media (max-width: 760px) { .row { grid-template-columns: repeat(2, minmax(120px, 1fr)); } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row">
+    <div class="field"><label>銘柄</label><input id="symbol" value="AAPL"></div>
+    <div class="field"><label>期間</label><input id="period" value="2y"></div>
+    <div class="field"><label>予測日数</label><input id="horizon" type="number" value="30" min="1" max="365"></div>
+    <div class="field"><label>lag</label><input id="lag" type="number" value="20" min="5" max="120"></div>
+    <div class="field"><label>モデル</label>
+      <select id="model">
+        <option>RandomForest</option><option>Prophet</option><option>Ensemble</option><option>XGBoost</option>
+      </select>
+    </div>
+    <div class="field"><label>changepoint</label><input id="cps" type="number" value="0.05" step="0.01" min="0.001" max="1.0"></div>
+    <div class="field"><label>対象</label>
+      <select id="universe">{% for u in universes %}<option>{{u}}</option>{% endfor %}</select>
+    </div>
+    <div class="field"><label>件数</label><input id="topn" type="number" value="5" min="3" max="20"></div>
+  </div>
+
+  <div class="row">
+    <div class="field" style="grid-column: span 4;"><label>季節性</label>
+      <div class="checks">
+        <label><input id="daily" type="checkbox">daily</label>
+        <label><input id="weekly" type="checkbox" checked>weekly</label>
+        <label><input id="yearly" type="checkbox" checked>yearly</label>
+      </div>
+    </div>
+    <div class="field" style="grid-column: span 4;"><label>RF特徴量</label>
+      <div class="checks">
+        <label><input id="f_return" type="checkbox" checked>return</label>
+        <label><input id="f_ma_ratio" type="checkbox" checked>ma_ratio</label>
+        <label><input id="f_momentum" type="checkbox" checked>momentum</label>
+        <label><input id="f_volatility" type="checkbox" checked>volatility</label>
+        <label><input id="f_rsi" type="checkbox" checked>rsi</label>
+        <label><input id="f_macd" type="checkbox" checked>macd</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="btns">
+    <button id="runBtn">予測実行</button>
+    <button id="screenBtn" class="secondary">おすすめ抽出</button>
+    <button id="jpBtn" class="green">日本株おすすめ抽出</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="forecastTab">チャート/予測</button>
+    <button class="tab-btn" data-tab="screenTab">おすすめ銘柄</button>
+  </div>
+
+  <div id="status" class="status">準備完了</div>
+
+  <section id="forecastTab" class="tab-panel active">
+    <div id="chartArea">
+      <div id="overlay"><div class="spinner"></div><div id="overlayMsg" class="overlay-msg">計算中...</div></div>
+      <div id="chart"></div>
+    </div>
+  </section>
+
+  <section id="screenTab" class="tab-panel">
+    <table>
+      <thead>
+        <tr><th>コード</th><th>銘柄名</th><th>現在値</th><th>予測値(20営業日)</th><th>予測上昇率</th><th>60日モメンタム</th><th>60日ボラ</th><th>総合スコア</th></tr>
+      </thead>
+      <tbody id="screenBody"></tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+const statusEl = document.getElementById('status');
+const overlay = document.getElementById('overlay');
+const overlayMsg = document.getElementById('overlayMsg');
+
+function setLoading(flag, msg='計算中...') {
+  overlay.style.display = flag ? 'flex' : 'none';
+  overlayMsg.textContent = msg;
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelector(`.tab-btn[data-tab="${id}"]`).classList.add('active');
+}
+
+function rfFeatureFlags() {
+  return {
+    return: document.getElementById('f_return').checked,
+    ma_ratio: document.getElementById('f_ma_ratio').checked,
+    momentum: document.getElementById('f_momentum').checked,
+    volatility: document.getElementById('f_volatility').checked,
+    rsi: document.getElementById('f_rsi').checked,
+    macd: document.getElementById('f_macd').checked,
+  };
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+document.getElementById('runBtn').addEventListener('click', async () => {
+  setLoading(true, '予測を計算中...');
+  switchTab('forecastTab');
+  statusEl.textContent = '予測を計算中...';
+  try {
+    const payload = {
+      symbol: document.getElementById('symbol').value,
+      period: document.getElementById('period').value,
+      forecast_days: Number(document.getElementById('horizon').value),
+      lag: Number(document.getElementById('lag').value),
+      model: document.getElementById('model').value,
+      daily: document.getElementById('daily').checked,
+      weekly: document.getElementById('weekly').checked,
+      yearly: document.getElementById('yearly').checked,
+      changepoint_prior_scale: Number(document.getElementById('cps').value),
+      rf_feature_flags: rfFeatureFlags(),
+    };
+    const res = await fetch('/api/forecast', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '予測エラー');
+    const d = json.data;
+
+    const traces = [
+      { x: d.history_dates, y: d.history_values, name: '実績終値', type: 'scatter', mode: 'lines' },
+      { x: d.forecast_dates, y: d.forecast_values, name: '予測終値', type: 'scatter', mode: 'lines' },
+      { x: d.backtest_dates, y: d.backtest_actual, name: 'バックテスト実測', type: 'scatter', mode: 'lines', xaxis: 'x2', yaxis: 'y2' },
+      { x: d.backtest_dates, y: d.backtest_pred, name: 'バックテスト予測', type: 'scatter', mode: 'lines', xaxis: 'x2', yaxis: 'y2' },
+    ];
+    const layout = {
+      title: `${d.symbol} (${d.company_name}) - ${d.model}`,
+      grid: {rows: 2, columns: 1, pattern: 'independent', roworder: 'top to bottom'},
+      xaxis: {title: 'Date'}, yaxis: {title: 'Price'},
+      xaxis2: {title: 'Date'}, yaxis2: {title: `Backtest MAE=${d.backtest_mae.toFixed(2)} RMSE=${d.backtest_rmse.toFixed(2)}`},
+      margin: {t: 50, l: 50, r: 20, b: 40},
+      legend: {orientation: 'h'}
+    };
+    Plotly.newPlot('chart', traces, layout, {responsive: true});
+    statusEl.textContent = `表示完了: ${d.symbol} / ${d.model}`;
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+async function runScreen(universe) {
+  setLoading(true, 'おすすめ銘柄を抽出中...');
+  switchTab('screenTab');
+  statusEl.textContent = 'おすすめ銘柄を抽出中...';
+  try {
+    const payload = {
+      universe,
+      top_n: Number(document.getElementById('topn').value),
+      rf_feature_flags: rfFeatureFlags(),
+    };
+    const res = await fetch('/api/screen', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '抽出エラー');
+
+    const body = document.getElementById('screenBody');
+    body.innerHTML = '';
+    for (const row of json.rows) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${row.symbol}</td><td>${row.name}</td><td>${row.last_price}</td><td>${row.predicted_price}</td><td>${row.expected_return}%</td><td>${row.momentum_60}%</td><td>${row.volatility_60}%</td><td>${row.score}</td>`;
+      body.appendChild(tr);
+    }
+    statusEl.textContent = `抽出完了: ${universe} / ${json.rows.length} 件`;
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+document.getElementById('screenBtn').addEventListener('click', () => runScreen(document.getElementById('universe').value));
+document.getElementById('jpBtn').addEventListener('click', () => runScreen('日本主要'));
+</script>
+</body>
+</html>
