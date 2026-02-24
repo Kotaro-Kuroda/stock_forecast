@@ -1,6 +1,6 @@
 import numpy as np
 
-from domain import DEFAULT_RF_FEATURE_FLAGS
+from shared.domain import DEFAULT_RF_FEATURE_FLAGS
 
 
 def normalize_rf_feature_flags(flags: dict | None) -> dict:

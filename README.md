@@ -22,6 +22,7 @@
 - 日本株専用の `日本株おすすめを抽出` ボタンに対応
 - `チャート/予測` タブと `おすすめ銘柄` タブを切り替えて表示可能
 - RF追加特徴量（return/ma_ratio/momentum/volatility/rsi/macd）をGUIでON/OFF可能
+- Flask版に `Paper Trading`（実発注なし）タブを追加
 
 ## セットアップ（uv）
 ```bash
@@ -48,6 +49,7 @@ uv run flask_app/app.py
 - `qt_app/app.py`: PyQt GUIアプリ
 - `flask_app/app.py`: Flask API とWeb画面エントリ
 - `flask_app/forecast_service.py`: Flask版の予測・バックテスト処理
+- `flask_app/paper_trading.py`: Paper Trading 状態管理と売買シミュレーション
 - `flask_app/templates/index.html`: Flask版フロントエンド（Plotly描画）
 - `shared/domain.py`: 定数（銘柄ユニバース/エイリアス）とデータクラス
 - `shared/feature_utils.py`: RF/XGBoost用の特徴量生成ロジック

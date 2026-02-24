@@ -1,0 +1,30 @@
+{
+  "日本主要": [
+    {
+      "symbol": "3197.T",
+      "name": "Skylark Holdings Co., Ltd."
+    },
+    {
+      "symbol": "3350.T",
+      "name": "Metaplanet Inc."
+    },
+    {
+      "symbol": "409A.T",
+      "name": "ORION BREWERIES LTD"
+    },
+    {
+      "symbol": "7453.T",
+      "name": "Ryohin Keikaku Co., Ltd."
+    },
+    {
+      "symbol": "9418.T",
+      "name": "U-NEXT HOLDINGS Co.,Ltd."
+    }
+  ],
+  "米国主要": [
+    {
+      "symbol": "MU",
+      "name": "Micron Technology, Inc."
+    }
+  ]
+}

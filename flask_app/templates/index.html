@@ -45,12 +45,15 @@
     <div class="field"><label>lag</label><input id="lag" type="number" value="20" min="5" max="120"></div>
     <div class="field"><label>モデル</label>
       <select id="model">
-        <option>RandomForest</option><option>Prophet</option><option>Ensemble</option><option>XGBoost</option>
+        <option>RandomForest</option><option>Prophet</option><option selected>Ensemble</option><option>XGBoost</option>
       </select>
     </div>
     <div class="field"><label>changepoint</label><input id="cps" type="number" value="0.05" step="0.01" min="0.001" max="1.0"></div>
     <div class="field"><label>対象</label>
       <select id="universe">{% for u in universes %}<option>{{u}}</option>{% endfor %}</select>
+    </div>
+    <div class="field"><label>業種</label>
+      <select id="sector">{% for s in sectors %}<option>{{s}}</option>{% endfor %}</select>
     </div>
     <div class="field"><label>件数</label><input id="topn" type="number" value="5" min="3" max="20"></div>
   </div>
@@ -75,15 +78,48 @@
     </div>
   </div>
 
+  <div class="row">
+    <div class="field"><label>登録先</label>
+      <select id="customUniverse">
+        <option>米国主要</option>
+        <option>日本主要</option>
+      </select>
+    </div>
+    <div class="field"><label>追加/削除コード</label><input id="customSymbol" placeholder="AAPL / 7203"></div>
+    <div class="field" style="grid-column: span 2;"><label>銘柄名(任意)</label><input id="customName" placeholder="未入力なら自動取得"></div>
+    <div class="field" style="grid-column: span 4;"><label>ユニバース編集</label>
+      <div class="checks">
+        <button id="customAddBtn" type="button" class="green">銘柄を追加</button>
+        <button id="customRemoveBtn" type="button" class="secondary">銘柄を削除</button>
+        <button id="customReloadBtn" type="button">一覧更新</button>
+      </div>
+    </div>
+  </div>
+
   <div class="btns">
     <button id="runBtn">予測実行</button>
+    <button id="decisionBtn">売買判断</button>
+    <button id="optimizeBtn" class="secondary">最適化のみ実行</button>
     <button id="screenBtn" class="secondary">おすすめ抽出</button>
     <button id="jpBtn" class="green">日本株おすすめ抽出</button>
+    <label class="field" style="padding: 4px 10px;">
+      <span style="font-size:12px;color:#4b5563;white-space:nowrap;">最適化試行回数</span>
+      <input id="optTrials" type="number" min="5" max="300" step="1" value="30" style="width:72px;">
+    </label>
+    <label class="field" style="padding: 4px 10px;"><input id="useOpenAIDecision" type="checkbox">OpenAIで売買判断</label>
+    <label class="field" style="padding: 4px 10px;">
+      <span style="font-size:12px;color:#4b5563;white-space:nowrap;">OpenAIモデル</span>
+      <input id="openaiDecisionModel" value="gpt-4.1-mini" style="width:120px;">
+    </label>
+    <label class="field" style="padding: 4px 10px;"><input id="fastOptimize" type="checkbox" checked>高速最適化</label>
+    <label class="field" style="padding: 4px 10px;"><input id="autoOptimize" type="checkbox">実行前に自動最適化</label>
   </div>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="forecastTab">チャート/予測</button>
     <button class="tab-btn" data-tab="screenTab">おすすめ銘柄</button>
+    <button class="tab-btn" data-tab="paperTab">Paper Trading</button>
+    <button class="tab-btn" data-tab="agentTab">Auto Trading</button>
   </div>
 
   <div id="status" class="status">準備完了</div>
@@ -93,14 +129,100 @@
       <div id="overlay"><div class="spinner"></div><div id="overlayMsg" class="overlay-msg">計算中...</div></div>
       <div id="chart"></div>
     </div>
+    <div id="decisionBox" class="status" style="margin-top:10px; background:#fff; border:1px solid #d9e0ea; border-radius:10px; padding:10px;">
+      売買判断は未実行です。
+    </div>
   </section>
 
   <section id="screenTab" class="tab-panel">
     <table>
       <thead>
-        <tr><th>コード</th><th>銘柄名</th><th>現在値</th><th>予測値(20営業日)</th><th>予測上昇率</th><th>60日モメンタム</th><th>60日ボラ</th><th>総合スコア</th></tr>
+        <tr><th>コード</th><th>銘柄名</th><th>業種</th><th>現在値</th><th>予測値(20営業日)</th><th>予測上昇率</th><th>60日モメンタム</th><th>60日ボラ</th><th>総合スコア</th></tr>
       </thead>
       <tbody id="screenBody"></tbody>
+    </table>
+    <br>
+    <table>
+      <thead>
+        <tr><th>登録先</th><th>カスタム銘柄コード</th><th>銘柄名</th></tr>
+      </thead>
+      <tbody id="customBody"></tbody>
+    </table>
+  </section>
+
+  <section id="paperTab" class="tab-panel">
+    <div class="row">
+      <div class="field"><label>初期資金(円)</label><input id="paperCash" type="number" value="1000000"></div>
+      <div class="field"><label>最大建玉数</label><input id="paperMaxPos" type="number" value="5" min="1" max="20"></div>
+      <div class="field"><label>買い閾値(%)</label><input id="paperBuyTh" type="number" value="1.0" step="0.1"></div>
+      <div class="field"><label>損切り(%)</label><input id="paperStopLoss" type="number" value="5.0" step="0.1"></div>
+      <div class="field"><label>1銘柄配分(%)</label><input id="paperPosSize" type="number" value="15.0" step="0.5"></div>
+      <div class="field" style="grid-column: span 3;"><label>操作</label>
+        <div class="checks">
+          <button id="paperStepBtn" class="secondary" type="button">1ステップ実行</button>
+          <button id="paperResetBtn" class="green" type="button">リセット</button>
+          <button id="paperReloadBtn" type="button">状態更新</button>
+        </div>
+      </div>
+    </div>
+    <div id="paperSummary" class="status">資産情報を読み込み中...</div>
+    <table>
+      <thead>
+        <tr><th>コード</th><th>銘柄名</th><th>通貨</th><th>為替(USDJPY)</th><th>数量</th><th>平均価格(円)</th><th>現在価格(円)</th><th>平均価格(現地)</th><th>現在価格(現地)</th><th>評価額(円)</th><th>損益(円)</th></tr>
+      </thead>
+      <tbody id="paperPosBody"></tbody>
+    </table>
+    <br>
+    <table>
+      <thead>
+        <tr><th>売買</th><th>コード</th><th>銘柄名</th><th>通貨</th><th>為替(USDJPY)</th><th>数量</th><th>価格(円)</th><th>価格(現地)</th><th>理由</th></tr>
+      </thead>
+      <tbody id="paperTradeBody"></tbody>
+    </table>
+  </section>
+
+  <section id="agentTab" class="tab-panel">
+    <div class="row">
+      <div class="field"><label>モード</label>
+        <select id="agentMode">
+          <option value="paper" selected>paper</option>
+          <option value="alpaca_paper">alpaca_paper(ブローカーペーパー)</option>
+          <option value="alpaca_live">alpaca_live(実取引)</option>
+          <option value="ibkr_paper">ibkr_paper(日本株/米株ペーパー)</option>
+          <option value="ibkr_live">ibkr_live(日本株/米株 実取引)</option>
+        </select>
+      </div>
+      <div class="field"><label>対象</label>
+        <select id="agentUniverse">{% for u in universes %}<option>{{u}}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>業種</label>
+        <select id="agentSector">{% for s in sectors %}<option>{{s}}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label>件数</label><input id="agentTopN" type="number" value="5" min="1" max="30"></div>
+      <div class="field"><label>最大建玉</label><input id="agentMaxPos" type="number" value="5" min="1" max="30"></div>
+      <div class="field"><label>買い閾値(%)</label><input id="agentBuyTh" type="number" value="1.0" step="0.1"></div>
+      <div class="field"><label>損切り(%)</label><input id="agentStopLoss" type="number" value="5.0" step="0.1"></div>
+      <div class="field"><label>配分(%)</label><input id="agentPosSize" type="number" value="15.0" step="0.5"></div>
+      <div class="field"><label>間隔(秒)</label><input id="agentIntervalSec" type="number" value="900" min="10" max="86400"></div>
+    </div>
+    <div class="row">
+      <label class="field" style="grid-column: span 4;">
+        <input id="agentConfirmLive" type="checkbox">
+        <span>実取引を許可する（alpaca_live時のみ必要）</span>
+      </label>
+    </div>
+    <div class="btns">
+      <button id="agentStartBtn" class="green" type="button">エージェント開始</button>
+      <button id="agentStopBtn" class="secondary" type="button">エージェント停止</button>
+      <button id="agentStepBtn" type="button">1回実行</button>
+      <button id="agentReloadBtn" type="button">状態更新</button>
+    </div>
+    <div id="agentSummary" class="status">エージェント状態を読み込み中...</div>
+    <table>
+      <thead>
+        <tr><th>時刻(UTC)</th><th>レベル</th><th>メッセージ</th></tr>
+      </thead>
+      <tbody id="agentLogBody"></tbody>
     </table>
   </section>
 </div>
@@ -109,6 +231,7 @@
 const statusEl = document.getElementById('status');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlayMsg');
+const yenFmt = new Intl.NumberFormat('ja-JP');
 
 function setLoading(flag, msg='計算中...') {
   overlay.style.display = flag ? 'flex' : 'none';
@@ -153,6 +276,11 @@ document.getElementById('runBtn').addEventListener('click', async () => {
       yearly: document.getElementById('yearly').checked,
       changepoint_prior_scale: Number(document.getElementById('cps').value),
       rf_feature_flags: rfFeatureFlags(),
+      auto_optimize: document.getElementById('autoOptimize').checked,
+      optimization_trials: Number(document.getElementById('optTrials').value),
+      fast_optimize: document.getElementById('fastOptimize').checked,
+      use_openai: document.getElementById('useOpenAIDecision').checked,
+      openai_model: document.getElementById('openaiDecisionModel').value,
     };
     const res = await fetch('/api/forecast', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
@@ -176,7 +304,110 @@ document.getElementById('runBtn').addEventListener('click', async () => {
       legend: {orientation: 'h'}
     };
     Plotly.newPlot('chart', traces, layout, {responsive: true});
-    statusEl.textContent = `表示完了: ${d.symbol} / ${d.model}`;
+    const optNote = d.optimization_note ? ` / ${d.optimization_note}` : '';
+    statusEl.textContent = `表示完了: ${d.symbol} / ${d.model}${optNote}`;
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+document.getElementById('decisionBtn').addEventListener('click', async () => {
+  setLoading(true, '売買判断を計算中...');
+  switchTab('forecastTab');
+  statusEl.textContent = 'AIエージェントが売買判断を計算中...';
+  try {
+    const payload = {
+      symbol: document.getElementById('symbol').value,
+      period: document.getElementById('period').value,
+      forecast_days: Number(document.getElementById('horizon').value),
+      lag: Number(document.getElementById('lag').value),
+      model: document.getElementById('model').value,
+      daily: document.getElementById('daily').checked,
+      weekly: document.getElementById('weekly').checked,
+      yearly: document.getElementById('yearly').checked,
+      changepoint_prior_scale: Number(document.getElementById('cps').value),
+      rf_feature_flags: rfFeatureFlags(),
+      auto_optimize: document.getElementById('autoOptimize').checked,
+      optimization_trials: Number(document.getElementById('optTrials').value),
+      fast_optimize: document.getElementById('fastOptimize').checked,
+      use_openai: document.getElementById('useOpenAIDecision').checked,
+      openai_model: document.getElementById('openaiDecisionModel').value,
+    };
+    const res = await fetch('/api/decision', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '判断エラー');
+    const d = json.data.decision;
+    const reasons = (d.reasons || []).map(r => `<li>${r}</li>`).join('');
+    document.getElementById('decisionBox').innerHTML =
+      `<b>判定:</b> ${d.action} / <b>購入推奨:</b> ${d.should_buy ? 'YES' : 'NO'} / <b>信頼度:</b> ${d.confidence}% / <b>判定エンジン:</b> ${d.engine}<br>` +
+      `<b>銘柄:</b> ${d.symbol} (${d.company_name}) / <b>モデル:</b> ${d.model}<br>` +
+      `<b>期待リターン:</b> ${d.expected_return_pct}% / <b>BT RMSE:</b> ${d.backtest_rmse_pct}% / <b>BT MAE:</b> ${d.backtest_mae_pct}% / <b>トレンド傾き:</b> ${d.trend_slope_pct}%<br>` +
+      `<b>理由:</b><ul style="margin:6px 0 0 20px;">${reasons}</ul>`;
+
+    const f = json.data.forecast;
+    const traces = [
+      { x: f.history_dates, y: f.history_values, name: '実績終値', type: 'scatter', mode: 'lines' },
+      { x: f.forecast_dates, y: f.forecast_values, name: '予測終値', type: 'scatter', mode: 'lines' },
+      { x: f.backtest_dates, y: f.backtest_actual, name: 'バックテスト実測', type: 'scatter', mode: 'lines', xaxis: 'x2', yaxis: 'y2' },
+      { x: f.backtest_dates, y: f.backtest_pred, name: 'バックテスト予測', type: 'scatter', mode: 'lines', xaxis: 'x2', yaxis: 'y2' },
+    ];
+    const layout = {
+      title: `${f.symbol} (${f.company_name}) - ${f.model} / Decision=${d.action}`,
+      grid: {rows: 2, columns: 1, pattern: 'independent', roworder: 'top to bottom'},
+      xaxis: {title: 'Date'}, yaxis: {title: 'Price'},
+      xaxis2: {title: 'Date'}, yaxis2: {title: `Backtest MAE=${f.backtest_mae.toFixed(2)} RMSE=${f.backtest_rmse.toFixed(2)}`},
+      margin: {t: 50, l: 50, r: 20, b: 40},
+      legend: {orientation: 'h'}
+    };
+    Plotly.newPlot('chart', traces, layout, {responsive: true});
+    statusEl.textContent = `売買判断完了: ${d.symbol} / ${d.action}`;
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+document.getElementById('optimizeBtn').addEventListener('click', async () => {
+  setLoading(true, '最適化を計算中...');
+  statusEl.textContent = 'ハイパーパラメータ最適化を実行中...';
+  try {
+    const payload = {
+      symbol: document.getElementById('symbol').value,
+      period: document.getElementById('period').value,
+      lag: Number(document.getElementById('lag').value),
+      model: document.getElementById('model').value,
+      daily: document.getElementById('daily').checked,
+      weekly: document.getElementById('weekly').checked,
+      yearly: document.getElementById('yearly').checked,
+      rf_feature_flags: rfFeatureFlags(),
+      optimization_trials: Number(document.getElementById('optTrials').value),
+      fast_optimize: document.getElementById('fastOptimize').checked,
+    };
+    const res = await fetch('/api/optimize', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '最適化エラー');
+    const best = json.data.best || {};
+    const model = payload.model;
+
+    if (best.lag !== undefined) {
+      document.getElementById('lag').value = Number(best.lag);
+    }
+    if (model === 'Prophet' || model === 'Ensemble') {
+      if (best.changepoint_prior_scale !== undefined) {
+        document.getElementById('cps').value = Number(best.changepoint_prior_scale);
+      }
+    }
+
+    statusEl.textContent = `最適化完了: ${json.data.symbol} / ${model} / trials=${json.data.n_trials} / ${JSON.stringify(best)}`;
   } catch (e) {
     statusEl.textContent = `エラー: ${e.message}`;
     alert(e.message);
@@ -192,6 +423,7 @@ async function runScreen(universe) {
   try {
     const payload = {
       universe,
+      sector: document.getElementById('sector').value,
       top_n: Number(document.getElementById('topn').value),
       rf_feature_flags: rfFeatureFlags(),
     };
@@ -205,7 +437,7 @@ async function runScreen(universe) {
     body.innerHTML = '';
     for (const row of json.rows) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${row.symbol}</td><td>${row.name}</td><td>${row.last_price}</td><td>${row.predicted_price}</td><td>${row.expected_return}%</td><td>${row.momentum_60}%</td><td>${row.volatility_60}%</td><td>${row.score}</td>`;
+      tr.innerHTML = `<td>${row.symbol}</td><td>${row.name}</td><td>${row.sector || ''}</td><td>${row.last_price}</td><td>${row.predicted_price}</td><td>${row.expected_return}%</td><td>${row.momentum_60}%</td><td>${row.volatility_60}%</td><td>${row.score}</td>`;
       body.appendChild(tr);
     }
     statusEl.textContent = `抽出完了: ${universe} / ${json.rows.length} 件`;
@@ -217,8 +449,274 @@ async function runScreen(universe) {
   }
 }
 
+async function loadCustomUniverse() {
+  const universe = document.getElementById('customUniverse').value;
+  try {
+    const res = await fetch(`/api/universe/list?universe=${encodeURIComponent(universe)}`);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'universe list error');
+    const body = document.getElementById('customBody');
+    body.innerHTML = '';
+    for (const r of (json.rows || [])) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${json.universe}</td><td>${r.symbol}</td><td>${r.name}</td>`;
+      body.appendChild(tr);
+    }
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+  }
+}
+
 document.getElementById('screenBtn').addEventListener('click', () => runScreen(document.getElementById('universe').value));
 document.getElementById('jpBtn').addEventListener('click', () => runScreen('日本主要'));
+document.getElementById('customUniverse').addEventListener('change', loadCustomUniverse);
+document.getElementById('customReloadBtn').addEventListener('click', loadCustomUniverse);
+
+document.getElementById('customAddBtn').addEventListener('click', async () => {
+  setLoading(true, '銘柄を登録中...');
+  try {
+    const payload = {
+      universe: document.getElementById('customUniverse').value,
+      symbol: document.getElementById('customSymbol').value,
+      name: document.getElementById('customName').value,
+    };
+    const res = await fetch('/api/universe/add', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'add error');
+    statusEl.textContent = `登録完了: ${json.universe} に ${json.symbol} (${json.name})`;
+    await loadCustomUniverse();
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+document.getElementById('customRemoveBtn').addEventListener('click', async () => {
+  setLoading(true, '銘柄を削除中...');
+  try {
+    const payload = {
+      universe: document.getElementById('customUniverse').value,
+      symbol: document.getElementById('customSymbol').value,
+    };
+    const res = await fetch('/api/universe/remove', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'remove error');
+    statusEl.textContent = json.removed ? `削除完了: ${json.universe} から ${json.symbol}` : `対象なし: ${json.symbol}`;
+    await loadCustomUniverse();
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+async function loadPaperStatus() {
+  try {
+    const res = await fetch('/api/paper/status');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'status error');
+    renderPaper(json.data);
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+  }
+}
+
+function renderAgentStatus(data) {
+  const mode = data.mode || 'paper';
+  const running = data.running ? '稼働中' : '停止中';
+  let accountText = '';
+  if (mode === 'paper' && data.paper_status) {
+    accountText = ` / paper 純資産: ${yenFmt.format(data.paper_status.equity || 0)} 円`;
+  }
+  if ((mode === 'alpaca_paper' || mode === 'alpaca_live') && data.alpaca_account) {
+    accountText = ` / alpaca 現金: ${Number(data.alpaca_account.cash_usd || 0).toFixed(2)} USD / 純資産: ${Number(data.alpaca_account.equity_usd || 0).toFixed(2)} USD`;
+  }
+  if ((mode === 'ibkr_paper' || mode === 'ibkr_live') && data.ibkr_endpoint) {
+    accountText = ` / ibkr endpoint: ${data.ibkr_endpoint}`;
+  }
+  document.getElementById('agentSummary').textContent =
+    `状態: ${running} / mode: ${mode} / cycle: ${data.cycle_count || 0} / 最終実行: ${data.last_run_at || '-'}${accountText}${data.alpaca_base_url ? ` / endpoint: ${data.alpaca_base_url}` : ''}${data.last_error ? ` / エラー: ${data.last_error}` : ''}`;
+
+  const logBody = document.getElementById('agentLogBody');
+  logBody.innerHTML = '';
+  for (const l of (data.logs || []).slice().reverse()) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${l.time || ''}</td><td>${l.level || ''}</td><td style="text-align:left;">${l.message || ''}</td>`;
+    logBody.appendChild(tr);
+  }
+}
+
+async function loadAgentStatus() {
+  try {
+    const res = await fetch('/api/agent/status');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'agent status error');
+    renderAgentStatus(json.data);
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+  }
+}
+
+function renderPaper(data) {
+  document.getElementById('paperSummary').textContent =
+    `現金: ${yenFmt.format(data.cash)} 円 / 純資産: ${yenFmt.format(data.equity)} 円 / USDJPY: ${Number(data.usd_jpy || 0).toFixed(2)} / 保有銘柄数: ${data.positions.length}`;
+
+  const posBody = document.getElementById('paperPosBody');
+  posBody.innerHTML = '';
+  for (const p of data.positions) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.symbol}</td><td>${p.name}</td><td>${p.currency || ''}</td><td>${Number(p.fx_rate || 1).toFixed(2)}</td><td>${p.qty}</td><td>${yenFmt.format(p.avg_price_jpy)}</td><td>${yenFmt.format(p.last_price_jpy)}</td><td>${Number(p.avg_price_native || 0).toFixed(4)}</td><td>${Number(p.last_price_native || 0).toFixed(4)}</td><td>${yenFmt.format(p.market_value)}</td><td>${yenFmt.format(p.pnl)}</td>`;
+    posBody.appendChild(tr);
+  }
+
+  const tradeBody = document.getElementById('paperTradeBody');
+  tradeBody.innerHTML = '';
+  for (const t of (data.trades || []).slice().reverse()) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${t.action}</td><td>${t.symbol}</td><td>${t.name}</td><td>${t.currency || ''}</td><td>${Number(t.fx_rate || 1).toFixed(2)}</td><td>${t.qty}</td><td>${yenFmt.format(t.price_jpy || t.price || 0)}</td><td>${Number(t.price_native || 0).toFixed(4)}</td><td>${t.reason}</td>`;
+    tradeBody.appendChild(tr);
+  }
+}
+
+document.getElementById('paperReloadBtn').addEventListener('click', async () => {
+  switchTab('paperTab');
+  await loadPaperStatus();
+});
+
+document.getElementById('paperResetBtn').addEventListener('click', async () => {
+  setLoading(true, 'Paper Trading をリセット中...');
+  switchTab('paperTab');
+  try {
+    const payload = { initial_cash: Number(document.getElementById('paperCash').value) };
+    const res = await fetch('/api/paper/reset', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'reset error');
+    renderPaper(json.data);
+    statusEl.textContent = 'Paper Trading リセット完了';
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+document.getElementById('paperStepBtn').addEventListener('click', async () => {
+  setLoading(true, 'Paper Trading ステップ実行中...');
+  switchTab('paperTab');
+  try {
+    const payload = {
+      universe: document.getElementById('universe').value,
+      sector: document.getElementById('sector').value,
+      top_n: Number(document.getElementById('topn').value),
+      rf_feature_flags: rfFeatureFlags(),
+      max_positions: Number(document.getElementById('paperMaxPos').value),
+      buy_threshold_pct: Number(document.getElementById('paperBuyTh').value),
+      stop_loss_pct: Number(document.getElementById('paperStopLoss').value),
+      position_size_pct: Number(document.getElementById('paperPosSize').value),
+    };
+    const res = await fetch('/api/paper/step', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'step error');
+    renderPaper(json.data);
+    const executed = (json.data.executed_trades || []).length;
+    statusEl.textContent = `Paper Trading 1ステップ完了（約定 ${executed} 件）`;
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+document.getElementById('agentReloadBtn').addEventListener('click', async () => {
+  switchTab('agentTab');
+  await loadAgentStatus();
+});
+
+document.getElementById('agentStartBtn').addEventListener('click', async () => {
+  setLoading(true, 'Auto Trading エージェントを開始中...');
+  switchTab('agentTab');
+  try {
+    const payload = {
+      mode: document.getElementById('agentMode').value,
+      universe: document.getElementById('agentUniverse').value,
+      sector: document.getElementById('agentSector').value,
+      top_n: Number(document.getElementById('agentTopN').value),
+      max_positions: Number(document.getElementById('agentMaxPos').value),
+      buy_threshold_pct: Number(document.getElementById('agentBuyTh').value),
+      stop_loss_pct: Number(document.getElementById('agentStopLoss').value),
+      position_size_pct: Number(document.getElementById('agentPosSize').value),
+      interval_sec: Number(document.getElementById('agentIntervalSec').value),
+      rf_feature_flags: rfFeatureFlags(),
+      confirm_live: document.getElementById('agentConfirmLive').checked,
+    };
+    const res = await fetch('/api/agent/start', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'agent start error');
+    renderAgentStatus(json.data);
+    statusEl.textContent = 'Auto Trading エージェントを開始しました';
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+document.getElementById('agentStopBtn').addEventListener('click', async () => {
+  setLoading(true, 'Auto Trading エージェントを停止中...');
+  switchTab('agentTab');
+  try {
+    const res = await fetch('/api/agent/stop', { method: 'POST' });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'agent stop error');
+    renderAgentStatus(json.data);
+    statusEl.textContent = 'Auto Trading エージェントを停止しました';
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+document.getElementById('agentStepBtn').addEventListener('click', async () => {
+  setLoading(true, 'Auto Trading を1回実行中...');
+  switchTab('agentTab');
+  try {
+    const payload = { rf_feature_flags: rfFeatureFlags() };
+    const res = await fetch('/api/agent/step', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'agent step error');
+    statusEl.textContent = `Auto Trading 1回実行完了: ${json.data.mode}`;
+    await loadAgentStatus();
+  } catch (e) {
+    statusEl.textContent = `エラー: ${e.message}`;
+    alert(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+loadPaperStatus();
+loadAgentStatus();
+loadCustomUniverse();
 </script>
 </body>
 </html>

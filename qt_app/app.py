@@ -93,6 +93,7 @@ class StockForecastApp(QMainWindow):
 
         self.model_input = QComboBox()
         self.model_input.addItems(["RandomForest", "Prophet", "Ensemble", "XGBoost"])
+        self.model_input.setCurrentText("Ensemble")
         form_layout.addWidget(QLabel("予測モデル"), 1, 0)
         form_layout.addWidget(self.model_input, 1, 1)
         self.model_input.currentTextChanged.connect(self.on_model_changed)
