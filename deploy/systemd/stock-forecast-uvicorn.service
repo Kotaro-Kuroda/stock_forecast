@@ -1,0 +1,18 @@
+[Unit]
+Description=Stock Forecast Flask App (Uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=capybara27
+Group=capybara27
+WorkingDirectory=/home/capybara27/Documents/stock_forecast
+Environment=FLASK_ENV=production
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/capybara27/.local/bin/uv run uvicorn flask_app.asgi:app --host 0.0.0.0 --port 8000 --workers 1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+

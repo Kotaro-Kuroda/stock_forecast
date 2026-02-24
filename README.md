@@ -45,6 +45,32 @@ uv run flask_app/app.py
 ```
 ブラウザで `http://127.0.0.1:5000` を開いてください。
 
+## Raspberry Piでuvicorn常駐（systemd）
+`flask_app/asgi.py` を使って `uvicorn` で常駐できます。  
+サンプルサービスファイル: `deploy/systemd/stock-forecast-uvicorn.service`
+
+1. 依存を同期
+```bash
+cd /home/capybara27/Documents/stock_forecast
+uv sync
+```
+
+2. systemd に登録
+```bash
+sudo cp /home/capybara27/Documents/stock_forecast/deploy/systemd/stock-forecast-uvicorn.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now stock-forecast-uvicorn
+```
+
+3. 状態確認
+```bash
+systemctl status stock-forecast-uvicorn
+journalctl -u stock-forecast-uvicorn -f
+```
+
+4. LAN からアクセス
+`http://<raspberrypi_ip>:8000`
+
 ## ファイル構成
 - `qt_app/app.py`: PyQt GUIアプリ
 - `flask_app/app.py`: Flask API とWeb画面エントリ
