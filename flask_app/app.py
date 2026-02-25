@@ -11,11 +11,24 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from shared.domain import DEFAULT_RF_FEATURE_FLAGS, SCREEN_UNIVERSES, SECTOR_OPTIONS
-from forecast_service import forecast, get_company_name, optimize_for_symbol, resolve_symbol, screen_candidates
-from paper_trading import PaperTrader
-from auto_trading_agent import AutoTradingAgent
-from decision_agent import decide_trade
-from universe_store import add_custom_row, list_custom_rows, remove_custom_row
+try:
+    from .forecast_service import (
+        forecast,
+        get_company_name,
+        optimize_for_symbol,
+        resolve_symbol,
+        screen_candidates,
+    )
+    from .paper_trading import PaperTrader
+    from .auto_trading_agent import AutoTradingAgent
+    from .decision_agent import decide_trade
+    from .universe_store import add_custom_row, list_custom_rows, remove_custom_row
+except ImportError:
+    from forecast_service import forecast, get_company_name, optimize_for_symbol, resolve_symbol, screen_candidates
+    from paper_trading import PaperTrader
+    from auto_trading_agent import AutoTradingAgent
+    from decision_agent import decide_trade
+    from universe_store import add_custom_row, list_custom_rows, remove_custom_row
 
 app = Flask(__name__)
 paper_trader = PaperTrader(PROJECT_ROOT / "flask_app" / "paper_state.json")

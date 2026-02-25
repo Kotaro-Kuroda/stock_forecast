@@ -7,7 +7,10 @@ from typing import Any
 
 import pandas as pd
 
-from forecast_service import get_yf, screen_candidates
+try:
+    from .forecast_service import get_yf, screen_candidates
+except ImportError:
+    from forecast_service import get_yf, screen_candidates
 
 
 @dataclass

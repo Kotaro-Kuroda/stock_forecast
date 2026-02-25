@@ -11,8 +11,12 @@ from typing import Any
 
 import requests
 
-from forecast_service import screen_candidates
-from paper_trading import PaperTrader
+try:
+    from .forecast_service import screen_candidates
+    from .paper_trading import PaperTrader
+except ImportError:
+    from forecast_service import screen_candidates
+    from paper_trading import PaperTrader
 
 
 def now_iso() -> str:

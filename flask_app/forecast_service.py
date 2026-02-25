@@ -18,7 +18,10 @@ from shared.feature_utils import (
     make_rf_feature_vector,
     normalize_rf_feature_flags,
 )
-from universe_store import get_universe_items
+try:
+    from .universe_store import get_universe_items
+except ImportError:
+    from universe_store import get_universe_items
 
 
 def get_optuna():

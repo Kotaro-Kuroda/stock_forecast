@@ -6,7 +6,10 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 
-from forecast_service import ForecastPayload, forecast
+try:
+    from .forecast_service import ForecastPayload, forecast
+except ImportError:
+    from forecast_service import ForecastPayload, forecast
 
 
 @dataclass
