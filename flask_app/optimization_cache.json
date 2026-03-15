@@ -275,5 +275,41 @@
       "xgb_cv_mae": 23.9001,
       "prophet_cv_mae": 54.9778
     }
+  },
+  "8914fcece5f45458e3b789108c263c2be5d3efef5fb500cfad13ea08c3079c41": {
+    "best": {
+      "lag": 25,
+      "n_estimators": 240,
+      "max_depth": 12,
+      "min_samples_leaf": 5,
+      "xgb_n_estimators": 160,
+      "xgb_max_depth": 7,
+      "xgb_learning_rate": 0.010416138691099081,
+      "xgb_subsample": 0.9091467695020283,
+      "xgb_colsample_bytree": 0.9222110918423657,
+      "changepoint_prior_scale": 0.005992601925017983,
+      "seasonality_mode": "multiplicative",
+      "rf_cv_mae": 0.0108,
+      "xgb_cv_mae": 0.0104,
+      "prophet_cv_mae": 21.0212
+    }
+  },
+  "bb81304d2ee9aefbaa10d570738d7ca9ec82c4d2125180afb9963a5490ab9e02": {
+    "best": {
+      "lag": 23,
+      "n_estimators": 440,
+      "max_depth": null,
+      "min_samples_leaf": 5,
+      "xgb_n_estimators": 200,
+      "xgb_max_depth": 8,
+      "xgb_learning_rate": 0.010116970003786887,
+      "xgb_subsample": 0.7442852217917502,
+      "xgb_colsample_bytree": 0.7283304266532742,
+      "changepoint_prior_scale": 0.005570615582941687,
+      "seasonality_mode": "additive",
+      "rf_cv_mae": 0.0105,
+      "xgb_cv_mae": 0.0107,
+      "prophet_cv_mae": 21.8974
+    }
   }
 }

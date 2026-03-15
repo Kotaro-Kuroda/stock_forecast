@@ -245,7 +245,8 @@ def train_rf(
     preds = []
     for _ in range(forecast_days):
         fv = np.array(make_rf_feature_vector(np.array(history[-lag:], dtype=float), flags)).reshape(1, -1)
-        v = float(model.predict(fv)[0])
+        r = float(model.predict(fv)[0])
+        v = history[-1] * (1.0 + r)
         preds.append(v)
         history.append(v)
 
@@ -291,7 +292,8 @@ def train_xgb(
     preds = []
     for _ in range(forecast_days):
         fv = np.array(make_rf_feature_vector(np.array(history[-lag:], dtype=float), flags)).reshape(1, -1)
-        v = float(model.predict(fv)[0])
+        r = float(model.predict(fv)[0])
+        v = history[-1] * (1.0 + r)
         preds.append(v)
         history.append(v)
 

@@ -71,6 +71,61 @@ journalctl -u stock-forecast-uvicorn -f
 4. LAN からアクセス
 `http://<raspberrypi_ip>:8000`
 
+## Raspberry PiでHTTPS化（Nginx）
+`uvicorn` はローカル (`127.0.0.1:8000`) で待受し、`Nginx` が HTTPS を終端します。
+
+### 1. uvicorn サービスを更新して再起動
+```bash
+cd /home/capybara27/Documents/stock_forecast
+sudo cp deploy/systemd/stock-forecast-uvicorn.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl restart stock-forecast-uvicorn
+sudo systemctl status stock-forecast-uvicorn
+```
+
+### 2. Nginx をインストール
+```bash
+sudo apt update
+sudo apt install -y nginx
+```
+
+### 3-A. ドメインあり（推奨: Let's Encrypt）
+1) DNSでドメインを Raspberry Pi のグローバルIPへ向ける  
+2) Nginx 設定を配置（`YOUR_DOMAIN` を実ドメインに置換）
+```bash
+sudo cp /home/capybara27/Documents/stock_forecast/deploy/nginx/stock-forecast.conf /etc/nginx/sites-available/stock-forecast
+sudo nano /etc/nginx/sites-available/stock-forecast
+sudo ln -sf /etc/nginx/sites-available/stock-forecast /etc/nginx/sites-enabled/stock-forecast
+sudo nginx -t
+sudo systemctl reload nginx
+```
+3) 証明書発行
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d YOUR_DOMAIN
+```
+
+### 3-B. 同一LANのみ（自己署名）
+```bash
+sudo openssl req -x509 -nodes -days 365 \
+  -newkey rsa:2048 \
+  -keyout /etc/ssl/private/stock-forecast.key \
+  -out /etc/ssl/certs/stock-forecast.crt \
+  -subj "/CN=$(hostname -I | awk '{print $1}')"
+
+sudo cp /home/capybara27/Documents/stock_forecast/deploy/nginx/stock-forecast-selfsigned.conf /etc/nginx/sites-available/stock-forecast
+sudo ln -sf /etc/nginx/sites-available/stock-forecast /etc/nginx/sites-enabled/stock-forecast
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 4. 確認
+```bash
+curl -I https://<raspberrypi_ip> -k
+```
+- ドメイン構成なら: `https://YOUR_DOMAIN`
+- 自己署名構成なら: `https://<raspberrypi_ip>`（初回は警告を許可）
+
 ## ファイル構成
 - `qt_app/app.py`: PyQt GUIアプリ
 - `flask_app/app.py`: Flask API とWeb画面エントリ

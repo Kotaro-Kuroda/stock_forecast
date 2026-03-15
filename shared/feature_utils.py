@@ -21,7 +21,10 @@ def build_rf_feature_dataset(
     for i in range(lag, len(values)):
         window = values[i - lag : i]
         x.append(make_rf_feature_vector(window, flags))
-        y.append(values[i])
+        # 1. 目的変数を「価格」から「収益率」に変更
+        prev_val = values[i - 1]
+        ret = (values[i] / prev_val - 1.0) if prev_val != 0 else 0.0
+        y.append(ret)
     return np.array(x, dtype=float), np.array(y, dtype=float)
 
 
@@ -30,7 +33,8 @@ def make_rf_feature_vector(window: np.ndarray, rf_feature_flags: dict) -> list[f
     w = window.astype(float)
     flags = normalize_rf_feature_flags(rf_feature_flags)
     last = w[-1]
-    features = list(w)
+    # 3. 入力特徴量から絶対価格を排除し、直近価格に対する比率（収益率）に変換
+    features = [float(val / max(last, eps) - 1.0) for val in w]
 
     if flags["return"]:
         prev = w[-2] if len(w) > 1 else w[-1]
